@@ -35,6 +35,11 @@ class GoogleMapController {
   }
 
   final _GoogleMapState _googleMapState;
+  // MOD imperative map updates (added those 4 fields)
+  late final _GoogleMapStateMarkersUpdateHandler _markersUpdateHandler = _GoogleMapStateMarkersUpdateHandler(this);
+  late final _GoogleMapStatePolylinesUpdateHandler _polylinesUpdateHandler = _GoogleMapStatePolylinesUpdateHandler(this);
+  late final _GoogleMapStatePolygonsUpdateHandler _polygonsUpdateHandler = _GoogleMapStatePolygonsUpdateHandler(this);
+  late final _GoogleMapStateCirclesUpdateHandler _circlesUpdateHandler = _GoogleMapStateCirclesUpdateHandler(this);
 
   void _connectStreams(int mapId) {
     if (_googleMapState.widget.onCameraMoveStarted != null) {

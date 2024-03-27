@@ -377,10 +377,11 @@ class _GoogleMapState extends State<GoogleMap> {
   void didUpdateWidget(GoogleMap oldWidget) {
     super.didUpdateWidget(oldWidget);
     _updateOptions();
-    _updateMarkers();
-    _updatePolygons();
-    _updatePolylines();
-    _updateCircles();
+    // MOD imperative map updates (commented the lines below)
+    //_updateMarkers();
+    //_updatePolygons();
+    //_updatePolylines();
+    //_updateCircles();
     _updateTileOverlays();
   }
 
