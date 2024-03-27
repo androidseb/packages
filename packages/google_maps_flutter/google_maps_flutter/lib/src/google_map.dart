@@ -430,13 +430,13 @@ class _GoogleMapState extends State<GoogleMap> {
   void didUpdateWidget(GoogleMap oldWidget) {
     super.didUpdateWidget(oldWidget);
     _updateOptions();
+    _updateClusterManagers();
     // MOD imperative map updates (commented the lines below)
-    //_updateClusterManagers();
     //_updateMarkers();
     //_updatePolygons();
     //_updatePolylines();
     //_updateCircles();
-    //_updateHeatmaps();
+    _updateHeatmaps();
     _updateTileOverlays();
     _updateGroundOverlays();
   }
