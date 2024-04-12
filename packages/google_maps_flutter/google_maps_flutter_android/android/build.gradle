@@ -40,7 +40,12 @@ android {
 
     dependencies {
         implementation "androidx.annotation:annotation:1.7.0"
-        implementation 'com.google.android.gms:play-services-maps:18.2.0'
+        // Downgraded from 18.2.0 to 18.1.0 - for some reason, 18.2.0 introduces a bug where map camera update
+        // callbacks can be delayed by up to a full second while dragging the map around;
+        // In order for floating marker titles to work properly:
+        // https://github.com/androidseb/flutter_map_floating_marker_titles
+        // we're downgrading to 18.1.0 until there is a new play-services-maps library version fixing that bug.
+        implementation 'com.google.android.gms:play-services-maps:18.1.0'
         androidTestImplementation 'androidx.test:runner:1.2.0'
         androidTestImplementation 'androidx.test:rules:1.4.0'
         androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
