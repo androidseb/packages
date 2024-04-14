@@ -45,7 +45,7 @@ android {
         // In order for floating marker titles to work properly:
         // https://github.com/androidseb/flutter_map_floating_marker_titles
         // we're downgrading to 18.1.0 until there is a new play-services-maps library version fixing that bug.
-        implementation 'com.google.android.gms:play-services-maps:18.1.0'
+        implementation 'com.google.android.gms:play-services-maps:18.2.0'
         androidTestImplementation 'androidx.test:runner:1.2.0'
         androidTestImplementation 'androidx.test:rules:1.4.0'
         androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
