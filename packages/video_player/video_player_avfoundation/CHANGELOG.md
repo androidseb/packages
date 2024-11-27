@@ -1,3 +1,21 @@
+## 2.6.3
+
+* Fixes VideoPlayerController.initialize() future never resolving with invalid video file.
+* Adds more details to the error message returned by VideoPlayerController.initialize().
+
+## 2.6.2
+
+* Updates Pigeon for non-nullable collection type support.
+* Updates minimum supported SDK version to Flutter 3.19/Dart 3.3.
+
+## 2.6.1
+
+* Adds files to make include directory permanent.
+
+## 2.6.0
+
+* Adds Swift Package Manager compatibility.
+
 ## 2.5.7
 
 * Adds frame availability checks on iOS.

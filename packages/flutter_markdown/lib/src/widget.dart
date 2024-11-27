@@ -10,7 +10,7 @@ import 'package:flutter/rendering.dart';
 import 'package:markdown/markdown.dart' as md;
 
 import '../flutter_markdown.dart';
-import '_functions_io.dart' if (dart.library.html) '_functions_web.dart';
+import '_functions_io.dart' if (dart.library.js_interop) '_functions_web.dart';
 
 /// Signature for callbacks used by [MarkdownWidget] when
 /// [MarkdownWidget.selectable] is set to true and the user changes selection.
@@ -46,7 +46,30 @@ typedef MarkdownCheckboxBuilder = Widget Function(bool value);
 /// Signature for custom bullet widget.
 ///
 /// Used by [MarkdownWidget.bulletBuilder]
-typedef MarkdownBulletBuilder = Widget Function(int index, BulletStyle style);
+typedef MarkdownBulletBuilder = Widget Function(
+  MarkdownBulletParameters parameters,
+);
+
+/// An parameters of [MarkdownBulletBuilder].
+///
+/// Used by [MarkdownWidget.bulletBuilder]
+class MarkdownBulletParameters {
+  /// Creates a new instance of [MarkdownBulletParameters].
+  const MarkdownBulletParameters({
+    required this.index,
+    required this.style,
+    required this.nestLevel,
+  });
+
+  /// The index of the bullet on that nesting level.
+  final int index;
+
+  /// The style of the bullet.
+  final BulletStyle style;
+
+  /// The nest level of the bullet.
+  final int nestLevel;
+}
 
 /// Enumeration sent to the user when calling [MarkdownBulletBuilder]
 ///

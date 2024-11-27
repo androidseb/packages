@@ -1,3 +1,15 @@
+## 0.12.4+3
+
+* Fixes callback types for `TokenClientConfig`.
+
+## 0.12.4+2
+
+* Adds support for `web: ^1.0.0`.
+
+## 0.12.4+1
+
+* Fixes README.md typo.
+
 ## 0.12.4
 
 * Updates dependencies to `web: ^0.5.0` and `google_identity_services_web: ^0.3.1`.

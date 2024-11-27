@@ -4,6 +4,7 @@
 
 package dev.flutter.packages.file_selector_android;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ContentResolver;
@@ -90,7 +91,8 @@ public class FileSelectorApiImpl implements GeneratedFileSelectorApi.FileSelecto
   public void openFile(
       @Nullable String initialDirectory,
       @NonNull GeneratedFileSelectorApi.FileTypes allowedTypes,
-      @NonNull GeneratedFileSelectorApi.Result<GeneratedFileSelectorApi.FileResponse> result) {
+      @NonNull
+          GeneratedFileSelectorApi.NullableResult<GeneratedFileSelectorApi.FileResponse> result) {
     final Intent intent = objectFactory.newIntent(Intent.ACTION_OPEN_DOCUMENT);
     intent.addCategory(Intent.CATEGORY_OPENABLE);
 
@@ -106,6 +108,12 @@ public class FileSelectorApiImpl implements GeneratedFileSelectorApi.FileSelecto
             public void onResult(int resultCode, @Nullable Intent data) {
               if (resultCode == Activity.RESULT_OK && data != null) {
                 final Uri uri = data.getData();
+                if (uri == null) {
+                  // No data retrieved from opening file.
+                  result.error(new Exception("Failed to retrieve data from opening file."));
+                  return;
+                }
+
                 final GeneratedFileSelectorApi.FileResponse file = toFileResponse(uri);
                 if (file != null) {
                   result.success(file);
@@ -183,8 +191,10 @@ public class FileSelectorApiImpl implements GeneratedFileSelectorApi.FileSelecto
   }
 
   @Override
+  @TargetApi(21)
   public void getDirectoryPath(
-      @Nullable String initialDirectory, @NonNull GeneratedFileSelectorApi.Result<String> result) {
+      @Nullable String initialDirectory,
+      @NonNull GeneratedFileSelectorApi.NullableResult<String> result) {
     if (!sdkChecker.sdkIsAtLeast(android.os.Build.VERSION_CODES.LOLLIPOP)) {
       result.error(
           new UnsupportedOperationException(
@@ -204,7 +214,22 @@ public class FileSelectorApiImpl implements GeneratedFileSelectorApi.FileSelecto
             public void onResult(int resultCode, @Nullable Intent data) {
               if (resultCode == Activity.RESULT_OK && data != null) {
                 final Uri uri = data.getData();
-                result.success(uri.toString());
+                if (uri == null) {
+                  // No data retrieved from opening directory.
+                  result.error(new Exception("Failed to retrieve data from opening directory."));
+                  return;
+                }
+
+                final Uri docUri =
+                    DocumentsContract.buildDocumentUriUsingTree(
+                        uri, DocumentsContract.getTreeDocumentId(uri));
+                try {
+                  final String path =
+                      FileUtils.getPathFromUri(activityPluginBinding.getActivity(), docUri);
+                  result.success(path);
+                } catch (UnsupportedOperationException exception) {
+                  result.error(exception);
+                }
               } else {
                 result.success(null);
               }
@@ -332,10 +357,13 @@ public class FileSelectorApiImpl implements GeneratedFileSelectorApi.FileSelecto
       return null;
     }
 
+    final String uriPath =
+        FileUtils.getPathFromCopyOfFileFromUri(activityPluginBinding.getActivity(), uri);
+
     return new GeneratedFileSelectorApi.FileResponse.Builder()
         .setName(name)
         .setBytes(bytes)
-        .setPath(uri.toString())
+        .setPath(uriPath)
         .setMimeType(contentResolver.getType(uri))
         .setSize(size.longValue())
         .build();

@@ -13,6 +13,11 @@ import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:video_player/video_player.dart';
+
+// Skip due to video_player error.
+// See https://github.com/flutter/flutter/issues/157181
+const bool skipFor157181 = true;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -93,7 +98,7 @@ void main() {
             await testCaptureImageResolution(controller, preset.key);
         // Ensures that if a lower resolution was used for previous (lower)
         // resolution preset, then the current (higher) preset also is adjusted,
-        // as it demands a hgher resolution.
+        // as it demands a higher resolution.
         expect(
             previousPresetExactlySupported || !presetExactlySupported, isTrue,
             reason:
@@ -178,4 +183,81 @@ void main() {
       }
     }
   });
+
+  testWidgets('Video capture records valid video', (WidgetTester tester) async {
+    final List<CameraDescription> cameras = await availableCameras();
+    if (cameras.isEmpty) {
+      return;
+    }
+
+    final CameraController controller = CameraController(cameras[0],
+        mediaSettings:
+            const MediaSettings(resolutionPreset: ResolutionPreset.low));
+    await controller.initialize();
+    await controller.prepareForVideoRecording();
+
+    await controller.startVideoRecording();
+    final int recordingStart = DateTime.now().millisecondsSinceEpoch;
+
+    sleep(const Duration(seconds: 2));
+
+    final XFile file = await controller.stopVideoRecording();
+    final int postStopTime =
+        DateTime.now().millisecondsSinceEpoch - recordingStart;
+
+    final File videoFile = File(file.path);
+    final VideoPlayerController videoController = VideoPlayerController.file(
+      videoFile,
+    );
+    await videoController.initialize();
+    final int duration = videoController.value.duration.inMilliseconds;
+    await videoController.dispose();
+
+    expect(duration, lessThan(postStopTime));
+  }, skip: skipFor157181);
+
+  testWidgets('Pause and resume video recording', (WidgetTester tester) async {
+    final List<CameraDescription> cameras = await availableCameras();
+    if (cameras.isEmpty) {
+      return;
+    }
+
+    final CameraController controller = CameraController(cameras[0],
+        mediaSettings:
+            const MediaSettings(resolutionPreset: ResolutionPreset.low));
+    await controller.initialize();
+    await controller.prepareForVideoRecording();
+
+    int startPause;
+    int timePaused = 0;
+    const int pauseIterations = 2;
+
+    await controller.startVideoRecording();
+    final int recordingStart = DateTime.now().millisecondsSinceEpoch;
+    sleep(const Duration(milliseconds: 500));
+
+    for (int i = 0; i < pauseIterations; i++) {
+      await controller.pauseVideoRecording();
+      startPause = DateTime.now().millisecondsSinceEpoch;
+      sleep(const Duration(milliseconds: 500));
+      await controller.resumeVideoRecording();
+      timePaused += DateTime.now().millisecondsSinceEpoch - startPause;
+
+      sleep(const Duration(milliseconds: 500));
+    }
+
+    final XFile file = await controller.stopVideoRecording();
+    final int recordingTime =
+        DateTime.now().millisecondsSinceEpoch - recordingStart;
+
+    final File videoFile = File(file.path);
+    final VideoPlayerController videoController = VideoPlayerController.file(
+      videoFile,
+    );
+    await videoController.initialize();
+    final int duration = videoController.value.duration.inMilliseconds;
+    await videoController.dispose();
+
+    expect(duration, lessThan(recordingTime - timePaused));
+  }, skip: skipFor157181);
 }

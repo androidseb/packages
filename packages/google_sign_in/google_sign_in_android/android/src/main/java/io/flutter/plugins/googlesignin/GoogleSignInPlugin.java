@@ -49,14 +49,6 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
   private @Nullable BinaryMessenger messenger;
   private ActivityPluginBinding activityPluginBinding;
 
-  @SuppressWarnings("deprecation")
-  public static void registerWith(
-      @NonNull io.flutter.plugin.common.PluginRegistry.Registrar registrar) {
-    GoogleSignInPlugin instance = new GoogleSignInPlugin();
-    instance.initInstance(registrar.messenger(), registrar.context(), new GoogleSignInWrapper());
-    instance.setUpRegistrar(registrar);
-  }
-
   @VisibleForTesting
   public void initInstance(
       @NonNull BinaryMessenger messenger,
@@ -64,19 +56,13 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
       @NonNull GoogleSignInWrapper googleSignInWrapper) {
     this.messenger = messenger;
     delegate = new Delegate(context, googleSignInWrapper);
-    GoogleSignInApi.setup(messenger, delegate);
-  }
-
-  @VisibleForTesting
-  @SuppressWarnings("deprecation")
-  public void setUpRegistrar(@NonNull PluginRegistry.Registrar registrar) {
-    delegate.setUpRegistrar(registrar);
+    GoogleSignInApi.setUp(messenger, delegate);
   }
 
   private void dispose() {
     delegate = null;
     if (messenger != null) {
-      GoogleSignInApi.setup(messenger, null);
+      GoogleSignInApi.setUp(messenger, null);
       messenger = null;
     }
   }
@@ -259,6 +245,30 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
    * Helper class for supporting the legacy IDelegate interface based on raw method channels, which
    * handles converting any FlutterErrors (or other {@code Throwable}s in case any non- FlutterError
    * exceptions slip through) thrown by the new code paths into {@code error} callbacks.
+   */
+  private abstract static class ErrorConvertingMethodChannelVoidResult
+      implements Messages.VoidResult {
+    final @NonNull MethodChannel.Result result;
+
+    public ErrorConvertingMethodChannelVoidResult(@NonNull MethodChannel.Result result) {
+      this.result = result;
+    }
+
+    @Override
+    public void error(@NonNull Throwable error) {
+      if (error instanceof FlutterError) {
+        FlutterError flutterError = (FlutterError) error;
+        result.error(flutterError.code, flutterError.getMessage(), flutterError.details);
+      } else {
+        result.error("exception", error.getMessage(), null);
+      }
+    }
+  }
+
+  /**
+   * Helper class for supporting the legacy IDelegate interface based on raw method channels, which
+   * handles converting any FlutterErrors (or other {@code Throwable}s in case any non- FlutterError
+   * exceptions slip through) thrown by the new code paths into {@code error} callbacks.
    *
    * @param <T> The Result type of the result to convert from.
    */
@@ -310,13 +320,13 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
    * Helper class for supporting the legacy IDelegate interface based on raw method channels, which
    * handles converting responses from methods that return {@code Void}.
    */
-  private static class VoidMethodChannelResult extends ErrorConvertingMethodChannelResult<Void> {
+  private static class VoidMethodChannelResult extends ErrorConvertingMethodChannelVoidResult {
     public VoidMethodChannelResult(MethodChannel.Result result) {
       super(result);
     }
 
     @Override
-    public void success(Void unused) {
+    public void success() {
       result.success(null);
     }
   }
@@ -354,9 +364,6 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
     private static final String DEFAULT_GAMES_SIGN_IN = "SignInOption.games";
 
     private final @NonNull Context context;
-    // Only set registrar for v1 embedder.
-    @SuppressWarnings("deprecation")
-    private PluginRegistry.Registrar registrar;
     // Only set activity for v2 embedder. Always access activity from getActivity() method.
     private @Nullable Activity activity;
     // TODO(stuartmorgan): See whether this can be replaced with background channels.
@@ -372,25 +379,19 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
       this.googleSignInWrapper = googleSignInWrapper;
     }
 
-    @SuppressWarnings("deprecation")
-    public void setUpRegistrar(@NonNull PluginRegistry.Registrar registrar) {
-      this.registrar = registrar;
-      registrar.addActivityResultListener(this);
-    }
-
     public void setActivity(@Nullable Activity activity) {
       this.activity = activity;
     }
 
     // Only access activity with this method.
     public @Nullable Activity getActivity() {
-      return registrar != null ? registrar.activity() : activity;
+      return activity;
     }
 
     private void checkAndSetPendingOperation(
         String method,
         Messages.Result<Messages.UserData> userDataResult,
-        Messages.Result<Void> voidResult,
+        Messages.VoidResult voidResult,
         Messages.Result<Boolean> boolResult,
         Messages.Result<String> stringResult,
         Object data) {
@@ -408,7 +409,7 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
     }
 
     private void checkAndSetPendingVoidOperation(
-        String method, @NonNull Messages.Result<Void> result) {
+        String method, @NonNull Messages.VoidResult result) {
       checkAndSetPendingOperation(method, null, result, null, null, null);
     }
 
@@ -580,7 +581,7 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
      * sign back in.
      */
     @Override
-    public void signOut(@NonNull Messages.Result<Void> result) {
+    public void signOut(@NonNull Messages.VoidResult result) {
       checkAndSetPendingVoidOperation("signOut", result);
 
       signInClient
@@ -603,7 +604,7 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
 
     /** Signs the user out, and revokes their credentials. */
     @Override
-    public void disconnect(@NonNull Messages.Result<Void> result) {
+    public void disconnect(@NonNull Messages.VoidResult result) {
       checkAndSetPendingVoidOperation("disconnect", result);
 
       signInClient
@@ -728,7 +729,7 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
     }
 
     private void finishWithSuccess() {
-      Objects.requireNonNull(pendingOperation.voidResult).success(null);
+      Objects.requireNonNull(pendingOperation.voidResult).success();
       pendingOperation = null;
     }
 
@@ -743,24 +744,27 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
     }
 
     private void finishWithError(String errorCode, String errorMessage) {
-      Messages.Result<?> result;
-      if (pendingOperation.userDataResult != null) {
-        result = pendingOperation.userDataResult;
-      } else if (pendingOperation.boolResult != null) {
-        result = pendingOperation.boolResult;
-      } else if (pendingOperation.stringResult != null) {
-        result = pendingOperation.stringResult;
+      if (pendingOperation.voidResult != null) {
+        Objects.requireNonNull(pendingOperation.voidResult)
+            .error(new FlutterError(errorCode, errorMessage, null));
       } else {
-        result = pendingOperation.voidResult;
+        Messages.Result<?> result;
+        if (pendingOperation.userDataResult != null) {
+          result = pendingOperation.userDataResult;
+        } else if (pendingOperation.boolResult != null) {
+          result = pendingOperation.boolResult;
+        } else {
+          result = pendingOperation.stringResult;
+        }
+        Objects.requireNonNull(result).error(new FlutterError(errorCode, errorMessage, null));
       }
-      Objects.requireNonNull(result).error(new FlutterError(errorCode, errorMessage, null));
       pendingOperation = null;
     }
 
     private static class PendingOperation {
       final @NonNull String method;
       final @Nullable Messages.Result<Messages.UserData> userDataResult;
-      final @Nullable Messages.Result<Void> voidResult;
+      final @Nullable Messages.VoidResult voidResult;
       final @Nullable Messages.Result<Boolean> boolResult;
       final @Nullable Messages.Result<String> stringResult;
       final @Nullable Object data;
@@ -768,7 +772,7 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
       PendingOperation(
           @NonNull String method,
           @Nullable Messages.Result<Messages.UserData> userDataResult,
-          @Nullable Messages.Result<Void> voidResult,
+          @Nullable Messages.VoidResult voidResult,
           @Nullable Messages.Result<Boolean> boolResult,
           @Nullable Messages.Result<String> stringResult,
           @Nullable Object data) {
@@ -787,7 +791,7 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
 
     /** Clears the token kept in the client side cache. */
     @Override
-    public void clearAuthCache(@NonNull String token, @NonNull Messages.Result<Void> result) {
+    public void clearAuthCache(@NonNull String token, @NonNull Messages.VoidResult result) {
       Callable<Void> clearTokenTask =
           () -> {
             GoogleAuthUtil.clearToken(context, token);
@@ -798,7 +802,8 @@ public class GoogleSignInPlugin implements FlutterPlugin, ActivityAware {
           clearTokenTask,
           clearTokenFuture -> {
             try {
-              result.success(clearTokenFuture.get());
+              clearTokenFuture.get();
+              result.success();
             } catch (ExecutionException e) {
               @Nullable Throwable cause = e.getCause();
               result.error(

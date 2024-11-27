@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 @import camera_avfoundation;
+#if __has_include(<camera_avfoundation/camera_avfoundation-umbrella.h>)
 @import camera_avfoundation.Test;
+#endif
 @import XCTest;
 @import AVFoundation;
 #import <OCMock/OCMock.h>
@@ -16,16 +18,14 @@
 - (void)testPausePreviewWithResult_shouldPausePreview {
   FLTCam *camera = [[FLTCam alloc] init];
 
-  [camera pausePreviewWithResult:^(id _Nullable result){
-  }];
+  [camera pausePreview];
   XCTAssertTrue(camera.isPreviewPaused);
 }
 
 - (void)testResumePreviewWithResult_shouldResumePreview {
   FLTCam *camera = [[FLTCam alloc] init];
 
-  [camera resumePreviewWithResult:^(id _Nullable result){
-  }];
+  [camera resumePreview];
   XCTAssertFalse(camera.isPreviewPaused);
 }
 
