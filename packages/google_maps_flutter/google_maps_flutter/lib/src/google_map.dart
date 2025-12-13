@@ -460,10 +460,11 @@ class _GoogleMapState extends State<GoogleMap> {
 
     _updateOptions(controller);
     _updateClusterManagers(controller);
-    _updateMarkers(controller);
-    _updatePolygons(controller);
-    _updatePolylines(controller);
-    _updateCircles(controller);
+    // MOD imperative map updates (commented the lines below)
+    //_updateMarkers(controller);
+    //_updatePolygons(controller);
+    //_updatePolylines(controller);
+    //_updateCircles(controller);
     _updateHeatmaps(controller);
     _updateTileOverlays(controller);
     _updateGroundOverlays(controller);
